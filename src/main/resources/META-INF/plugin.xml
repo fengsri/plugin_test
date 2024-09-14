@@ -1,0 +1,48 @@
+<idea-plugin>
+    <!-- Unique id for this plugin. Must stay constant for the life of the plugin. -->
+    <id>org.intellij.sdk.action</id>
+
+    <!-- Text to display as name on Settings | Plugin page -->
+    <name>TddCovey</name>
+
+    <!-- Indicate this plugin can be loaded in all IntelliJ Platform-based products. -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.go</depends>
+    <depends>com.intellij.modules.goland</depends>
+
+    <!-- Text to display as description on Settings | Plugin page -->
+    <description>
+        This is a TDD Covey fast execution IDEA plugin that can quickly replace Covey with FocusCovey
+    </description>
+    <change-notes>
+        <![CDATA[
+      <ul>
+        <li><b>2.0.0</b> Renamed from register_actions and converted to Gradle project.</li>
+        <li><b>1.1</b> Refactor to give users feedback when selecting menu items.</li>
+        <li><b>1.0</b> Release 2018.3 and earlier.</li>
+      </ul>
+    ]]>
+    </change-notes>
+
+    <vendor url="https://plugins.jetbrains.com">IntelliJ Platform SDK</vendor>
+
+    <resource-bundle>messages.BasicActionsBundle</resource-bundle>
+
+    <idea-version since-build="213"/>
+
+    <actions>
+        <action icon="com.xhiteam.convey.SdkIcons.Sdk_default_icon" id="test_id"
+                class="com.xhiteam.convey.CoveyAction" text="Covey替换" description="Covey替换">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl meta J"/>
+        </action>
+        <!--        <action id="PrintLineAction" class="org.intellij.sdk.action.PrintLineAction" text="打印行通知" description="打印行通知">-->
+        <!--            <add-to-group group-id="MainMenu" anchor="last"/>-->
+        <!--        </action>-->
+    </actions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!--        <codeInsight.lineMarkerProvider implementationClass="org.intellij.sdk.action.line_marker.ConveyLineMarkerProvider" language="go"/>-->
+    </extensions>
+
+</idea-plugin>
