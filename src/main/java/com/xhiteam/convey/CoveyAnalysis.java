@@ -9,9 +9,9 @@ import java.util.regex.Pattern;
 
 public class CoveyAnalysis {
 
-    public String createConveyTree(String data, String row) {
+    public String createConveyTree(String data, RowString row, int funcNum) {
         // 获取Covey数据
-        List<String> conveyDataLine = getConveyDataLine(data);
+        List<RowString> conveyDataLine = getConveyDataLine(data, funcNum);
 
         // 构建Covey树结构
         CoveyCase buildCase = buildCase(conveyDataLine, 0, "", 1, new ArrayList<>());
@@ -28,14 +28,14 @@ public class CoveyAnalysis {
         return data.replace(originCoveyCode, coveyCode);
     }
 
-    private void fullBodyLine(List<String> lineList, CoveyCase convey) {
+    private void fullBodyLine(List<RowString> lineList, CoveyCase convey) {
         if (lineList.size() <= 0) {
             return;
         }
         if (convey.StartLine == 0 && convey.EndLine == 0) {
             return;
         }
-        List<String> body = new ArrayList<>();
+        List<RowString> body = new ArrayList<>();
         for (int i = convey.StartLine + 1; i < convey.EndLine; i++) {
             body.add(lineList.get(i));
         }
@@ -45,11 +45,11 @@ public class CoveyAnalysis {
         }
     }
 
-    private List<String> getConveyDataLine(String tmp) {
+    private List<RowString> getConveyDataLine(String tmp, int funcRow) {
         String[] splitList = Strings.trim(tmp).split("\n");
 
         // 定义临时变量
-        List<String> data = new ArrayList<>();
+        List<RowString> data = new ArrayList<>();
         int start = 0;
         int tag = 0;
 
@@ -70,26 +70,26 @@ public class CoveyAnalysis {
             String tmpLine = Strings.trim(v);
             if ((tmpLine.startsWith("Convey(") || tmpLine.startsWith("FocusConvey(")) && tmpLine.endsWith("{")) {
                 if (tag == 0) {
-                    tag = countTab(v);
+                    tag = countTab(new RowString(v, 0));
                 }
             }
             if (tag > 0) {
-                data.add(v);
+                data.add(new RowString(v, i + funcRow));
             }
-            if (tmpLine.equals("})") && tag == countTab(v)) {
+            if (tmpLine.equals("})") && tag == countTab(new RowString(v, 0))) {
                 break;
             }
         }
         return data;
     }
 
-    private CoveyCase buildCase(List<String> lineList, int start, String parentId, int level, List<String> prefixLine) {
+    private CoveyCase buildCase(List<RowString> lineList, int start, String parentId, int level, List<RowString> prefixLine) {
         if ((lineList.size() - 1) <= start) {
             return null;
         }
         int tag = countTab(lineList.get(start));
         String CaseName = "";
-        Matcher matcher = Pattern.compile("\".*\"").matcher(Strings.trim(lineList.get(start)));
+        Matcher matcher = Pattern.compile("\".*\"").matcher(Strings.trim(lineList.get(start).string));
         if (matcher.find()) {
             CaseName = matcher.group().replaceAll("\"", "");
         }
@@ -106,9 +106,9 @@ public class CoveyAnalysis {
         node.PreLine = prefixLine;
 
         List<CoveyCase> childrenList = new ArrayList<>();
-        List<String> preLine = new ArrayList<>();
+        List<RowString> preLine = new ArrayList<>();
         for (int i = start + 1; i < lineList.size(); i++) {
-            String item = Strings.trim(lineList.get(i));
+            String item = Strings.trim(lineList.get(i).string);
             if ((item.startsWith("Convey(") || item.startsWith("FocusConvey(")) && item.endsWith("{")) {
                 CoveyCase children = buildCase(lineList, i, node.Id, level + 1, preLine);
                 if (children != null) {
@@ -133,7 +133,8 @@ public class CoveyAnalysis {
         return node;
     }
 
-    private boolean setNeedReplace(CoveyCase coveyCase, String row, boolean setChildren) {
+
+    private boolean setNeedReplace(CoveyCase coveyCase, RowString row, boolean setChildren) {
         if (coveyCase == null) {
             return false;
         }
@@ -174,25 +175,25 @@ public class CoveyAnalysis {
     }
 
 
-    private int countTab(String s) {
-        String[] parts = s.split("\t");
+    private int countTab(RowString s) {
+        String[] parts = s.string.split("\t");
         return parts.length - 1;
     }
 
-    private String buildOriginCoveyCode(List<String> origin) {
+    private String buildOriginCoveyCode(List<RowString> origin) {
         StringBuilder data = new StringBuilder();
-        for (String s : origin) {
-            data.append(s).append("\n");
+        for (RowString s : origin) {
+            data.append(s.string).append("\n");
         }
         return data.toString();
     }
 
-    private String buildCoveyCode(CoveyCase coveyCase, boolean isFirst, String data, String row, boolean use, boolean isFocusConvey) {
+    private String buildCoveyCode(CoveyCase coveyCase, boolean isFirst, String data, RowString row, boolean use, boolean isFocusConvey) {
         data = headerFunc(coveyCase, isFirst, data, use, isFocusConvey);
         data = bodyFunc(coveyCase, data);
         if (!coveyCase.IsLeaf && coveyCase.FirstLine.equals(row)) {
             use = true;
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine).startsWith("Convey")) {
+            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
                 isFocusConvey = true;
             }
         }
@@ -207,7 +208,7 @@ public class CoveyAnalysis {
     private String headerFunc(CoveyCase coveyCase, boolean isFirst, String result, boolean use, boolean isFocusConvey) {
         StringBuilder resultBuilder = new StringBuilder(result);
         for (int i = 0; i < coveyCase.PreLine.size(); i++) {
-            resultBuilder.append(coveyCase.PreLine.get(i)).append("\n");
+            resultBuilder.append(coveyCase.PreLine.get(i).string).append("\n");
         }
         result = resultBuilder.toString();
         if (use) {
@@ -219,7 +220,7 @@ public class CoveyAnalysis {
             return result;
         }
         if (isFirst) {
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine).startsWith("Convey")) {
+            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
                 result += fullPrefix("\t", coveyCase.Level, "FocusConvey(\"" + coveyCase.CaseName + "\", t, func() {\n");
             } else {
                 result += fullPrefix("\t", coveyCase.Level, "Convey(\"" + coveyCase.CaseName + "\", t, func() {\n");
@@ -227,7 +228,7 @@ public class CoveyAnalysis {
         }
 
         if (!isFirst) {
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine).startsWith("Convey")) {
+            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
                 result += fullPrefix("\t", coveyCase.Level, "FocusConvey(\"" + coveyCase.CaseName + "\", func() {\n");
             } else {
                 result += fullPrefix("\t", coveyCase.Level, "Convey(\"" + coveyCase.CaseName + "\", func() {\n");
@@ -240,7 +241,7 @@ public class CoveyAnalysis {
         if (coveyCase.IsLeaf) {
             StringBuilder resultBuilder = new StringBuilder(result);
             for (int i = 0; i < coveyCase.BodyLine.size(); i++) {
-                resultBuilder.append(coveyCase.BodyLine.get(i)).append("\n");
+                resultBuilder.append(coveyCase.BodyLine.get(i).string).append("\n");
             }
             result = resultBuilder.toString();
         }

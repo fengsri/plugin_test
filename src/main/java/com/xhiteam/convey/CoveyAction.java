@@ -8,13 +8,16 @@ import com.intellij.openapi.editor.LogicalPosition;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.util.text.Strings;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 public class CoveyAction extends AnAction {
 
@@ -56,9 +59,15 @@ public class CoveyAction extends AnAction {
                 if (conveyFuncTxt.isEmpty()) {
                     return;
                 }
+                int funcRow = getTddFuncRowNum(psiFile, conveyFuncTxt);
+                if (funcRow == 0) {
+                    return;
+                }
 
                 // 4. 解析并替换子父级的Covey
-                String result = new CoveyAnalysis().createConveyTree(conveyFuncTxt, row);
+                LogicalPosition logicalPosition = editor.getCaretModel().getLogicalPosition();
+                int lineNumber = logicalPosition.line;
+                String result = new CoveyAnalysis().createConveyTree(conveyFuncTxt, new RowString(row, lineNumber), funcRow);
                 result = fileContent.replace(conveyFuncTxt, result);
 
                 // 5. 写入文件内容
@@ -96,6 +105,23 @@ public class CoveyAction extends AnAction {
             return "";
         }
         return method.getText();
+    }
+
+    public int getTddFuncRowNum(PsiFile psiFile, String func) {
+        String[] tempList = func.split("\n");
+        if (tempList.length == 0) {
+            return 0;
+        }
+        String funcName = tempList[0];
+        String[] tempList2 = psiFile.getText().split("\n");
+        int num = 0;
+        for (int i = 0; i < tempList2.length; i++) {
+            if (funcName.equals(tempList2[i])) {
+                num = i;
+                break;
+            }
+        }
+        return num;
     }
 
     public String getRowText(Editor editor) {

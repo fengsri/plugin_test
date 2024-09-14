@@ -8,7 +8,7 @@ public class CoveyCase {
 
     String CaseName;
 
-    String FirstLine;
+    RowString FirstLine;
 
 
     boolean IsLeaf;
@@ -21,9 +21,9 @@ public class CoveyCase {
 
     List<CoveyCase> ChildrenConvey;
 
-    List<String> BodyLine;
+    List<RowString> BodyLine;
 
-    List<String> PreLine;
+    List<RowString> PreLine;
 
 
     // 临时变量判断是否需要替换
