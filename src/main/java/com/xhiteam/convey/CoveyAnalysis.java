@@ -18,10 +18,11 @@ public class CoveyAnalysis {
         fullBodyLine(conveyDataLine, buildCase);
 
         // 根据光标的行代码去做替换
-        setNeedReplace(buildCase, row, false);
+        boolean convey = Strings.trim(row.string).startsWith("Convey");
+        setNeedReplace(buildCase, row, false, convey);
 
         // 构建原Covey的代码结构 , 现在替换的Covey代码
-        String coveyCode = buildCoveyCode(buildCase, true, "", row, false, false);
+        String coveyCode = buildCoveyCode(buildCase, "");
         String originCoveyCode = buildOriginCoveyCode(conveyDataLine);
 
         // 替换函数
@@ -134,44 +135,80 @@ public class CoveyAnalysis {
     }
 
 
-    private boolean setNeedReplace(CoveyCase coveyCase, RowString row, boolean setChildren) {
+    private boolean setNeedReplace(CoveyCase coveyCase, RowString row, boolean setGlobal, boolean convey) {
         if (coveyCase == null) {
             return false;
         }
+        // 叶子结点
         if (coveyCase.IsLeaf) {
-            if (setChildren) {
-                coveyCase.NeedReplace = true;
+            if (setGlobal) {
+                if (convey && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
+                    coveyCase.NeedReplace = true;
+                }
+                if (!convey && Strings.trim(coveyCase.FirstLine.string).startsWith("FocusConvey")) {
+                    coveyCase.NeedReplace = true;
+                }
                 return false;
             }
             return false;
         }
-        if (!setChildren) {
-            setChildren = coveyCase.FirstLine.equals(row);
+
+        // 父级节点
+        if (!setGlobal) {
+            setGlobal = coveyCase.FirstLine.equals(row);
         }
-        if (setChildren) {
-            coveyCase.NeedReplace = true;
+        if (setGlobal) {
+            if (convey && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
+                coveyCase.NeedReplace = true;
+            }
+            if (!convey && Strings.trim(coveyCase.FirstLine.string).startsWith("FocusConvey")) {
+                coveyCase.NeedReplace = true;
+            }
         }
-        boolean isMath = false;
-        boolean backMath = false;
+
+        // 设置子节点
+        boolean currentMatch = false;
+        boolean backMatch = false;
         for (int i = 0; i < coveyCase.ChildrenConvey.size(); i++) {
             CoveyCase childrenConvey = coveyCase.ChildrenConvey.get(i);
-            if (setChildren) {
-                setNeedReplace(childrenConvey, row, true);
+            if (setGlobal) {
+                setNeedReplace(childrenConvey, row, true, convey);
                 continue;
             }
-            if (!isMath) {
-                isMath = childrenConvey.FirstLine.equals(row);
-                backMath = setNeedReplace(childrenConvey, row, isMath);
-                if (backMath) {
-                    isMath = true;
-                    childrenConvey.NeedReplace = true;
+            if (!currentMatch) {
+                currentMatch = childrenConvey.FirstLine.equals(row);
+                backMatch = setNeedReplace(childrenConvey, row, currentMatch, convey);
+                if (backMatch) {
+                    currentMatch = true;
                 }
             }
         }
-        if (isMath || backMath) {
-            coveyCase.NeedReplace = true;
+
+        // 判断下当前层级是否还有FocusConvey
+        boolean hasFocusConvey = false;
+        for (int i = 0; i < coveyCase.ChildrenConvey.size(); i++) {
+            CoveyCase childrenConvey = coveyCase.ChildrenConvey.get(i);
+            if (childrenConvey.NeedReplace && Strings.trim(childrenConvey.FirstLine.string).startsWith("Convey")) {
+                hasFocusConvey = true;
+                break;
+            }
+            if (!childrenConvey.NeedReplace && Strings.trim(childrenConvey.FirstLine.string).startsWith("FocusConvey")) {
+                hasFocusConvey = true;
+                break;
+            }
         }
-        return isMath || backMath;
+
+        if (currentMatch || backMatch) {
+            if (convey && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
+                coveyCase.NeedReplace = true;
+            }
+            if (!convey && Strings.trim(coveyCase.FirstLine.string).startsWith("FocusConvey")) {
+                if (!hasFocusConvey) {
+                    coveyCase.NeedReplace = true;
+                }
+            }
+        }
+        return currentMatch || backMatch;
     }
 
 
@@ -188,51 +225,32 @@ public class CoveyAnalysis {
         return data.toString();
     }
 
-    private String buildCoveyCode(CoveyCase coveyCase, boolean isFirst, String data, RowString row, boolean use, boolean isFocusConvey) {
-        data = headerFunc(coveyCase, isFirst, data, use, isFocusConvey);
+    private String buildCoveyCode(CoveyCase coveyCase, String data) {
+        data = headerFunc(coveyCase, data);
         data = bodyFunc(coveyCase, data);
-        if (!coveyCase.IsLeaf && coveyCase.FirstLine.equals(row)) {
-            use = true;
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
-                isFocusConvey = true;
-            }
-        }
         for (int i = 0; i < coveyCase.ChildrenConvey.size(); i++) {
             CoveyCase childrenConvey = coveyCase.ChildrenConvey.get(i);
-            data = buildCoveyCode(childrenConvey, false, data, row, use, isFocusConvey);
+            data = buildCoveyCode(childrenConvey, data);
         }
         data += fullPrefix("\t", coveyCase.Level, "})\n");
         return data;
     }
 
-    private String headerFunc(CoveyCase coveyCase, boolean isFirst, String result, boolean use, boolean isFocusConvey) {
+    private String headerFunc(CoveyCase coveyCase, String result) {
         StringBuilder resultBuilder = new StringBuilder(result);
         for (int i = 0; i < coveyCase.PreLine.size(); i++) {
             resultBuilder.append(coveyCase.PreLine.get(i).string).append("\n");
         }
         result = resultBuilder.toString();
-        if (use) {
-            if (isFocusConvey) {
-                result += fullPrefix("\t", coveyCase.Level, "FocusConvey(\"" + coveyCase.CaseName + "\", func() {\n");
-            } else {
-                result += fullPrefix("\t", coveyCase.Level, "Convey(\"" + coveyCase.CaseName + "\", func() {\n");
+        if (coveyCase.NeedReplace) {
+            if (Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
+                result += coveyCase.FirstLine.string.replace("Convey", "FocusConvey") + "\n";
             }
-            return result;
-        }
-        if (isFirst) {
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
-                result += fullPrefix("\t", coveyCase.Level, "FocusConvey(\"" + coveyCase.CaseName + "\", t, func() {\n");
-            } else {
-                result += fullPrefix("\t", coveyCase.Level, "Convey(\"" + coveyCase.CaseName + "\", t, func() {\n");
+            if (Strings.trim(coveyCase.FirstLine.string).startsWith("FocusConvey")) {
+                result += coveyCase.FirstLine.string.replace("FocusConvey", "Convey") + "\n";
             }
-        }
-
-        if (!isFirst) {
-            if (coveyCase.NeedReplace && Strings.trim(coveyCase.FirstLine.string).startsWith("Convey")) {
-                result += fullPrefix("\t", coveyCase.Level, "FocusConvey(\"" + coveyCase.CaseName + "\", func() {\n");
-            } else {
-                result += fullPrefix("\t", coveyCase.Level, "Convey(\"" + coveyCase.CaseName + "\", func() {\n");
-            }
+        } else {
+            result += coveyCase.FirstLine.string + "\n";
         }
         return result;
     }

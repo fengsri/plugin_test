@@ -36,9 +36,6 @@
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl meta J"/>
         </action>
-        <!--        <action id="PrintLineAction" class="org.intellij.sdk.action.PrintLineAction" text="打印行通知" description="打印行通知">-->
-        <!--            <add-to-group group-id="MainMenu" anchor="last"/>-->
-        <!--        </action>-->
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
